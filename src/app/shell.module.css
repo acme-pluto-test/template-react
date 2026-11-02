@@ -1,0 +1,11 @@
+.nav {
+  display: flex;
+  gap: 1rem;
+  padding: calc(var(--safe-area-top) + 0.75rem) calc(var(--safe-area-right) + 1rem) 0.75rem calc(var(--safe-area-left) + 1rem);
+  border-bottom: 1px solid var(--border);
+}
+
+.main {
+  min-height: 100dvh;
+  padding: calc(var(--safe-area-top) + 1rem) calc(var(--safe-area-right) + 1rem) calc(var(--safe-area-bottom) + 1rem) calc(var(--safe-area-left) + 1rem);
+}
