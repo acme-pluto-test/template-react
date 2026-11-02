@@ -3,7 +3,7 @@ import { encode, type NativeToWebMessage, type WebToNativeMessage, parseWebToNat
 
 export const NATIVE = "app://native";
 
-type Pluto = { postMessage: (text: string) => void; onmessage?: ((e: { data: unknown; origin: string }) => void) | null; receive?: (text: string) => void };
+type Pluto = { postMessage: (text: string) => void; onmessage?: ((e: { data: unknown; origin?: string }) => void) | null; receive?: (text: string) => void };
 
 /** Installs the Android-style host object and records what the page sends. */
 export function installHost(): { sent: WebToNativeMessage[]; pluto: Pluto } {

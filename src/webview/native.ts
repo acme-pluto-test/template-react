@@ -8,7 +8,7 @@ import { nativeOrigin } from "./flag";
 // and native answers by calling window.pluto.receive(text).
 interface PlutoObject {
   postMessage?: (text: string) => void;
-  onmessage?: ((event: { data: unknown; origin: string }) => void) | null;
+  onmessage?: ((event: { data: unknown; origin?: string }) => void) | null;
   receive?: (text: string) => void;
 }
 type Host = Window & { pluto?: PlutoObject; webkit?: { messageHandlers?: { pluto?: { postMessage: (text: string) => void } } } };
@@ -35,7 +35,13 @@ export function listenToNative(handler: (message: NativeToWebMessage) => void): 
   };
   const pluto: PlutoObject = h.pluto ?? {};
   pluto.onmessage = (event) => {
-    if (event.origin !== nativeOrigin()) return; // with no origin configured nothing is equal: fail closed
+    if (!nativeOrigin()) return; // fail closed: with no shell configured nothing is accepted
+    // The listener of an Android WebView answers with a message that has no origin at all (measured on a device); a message that
+    // names an origin must name the shell's. The origin is public information and says why a shell is not heard.
+    if (event.origin !== undefined && event.origin !== nativeOrigin()) {
+      console.warn(`pluto: dropped a message from origin ${JSON.stringify(event.origin)}, expected ${JSON.stringify(nativeOrigin() ?? null)}`);
+      return;
+    }
     accept(event.data);
   };
   pluto.receive = (text) => {

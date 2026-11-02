@@ -40,6 +40,52 @@ describe("Webview token", () => {
     expect(document.cookie).not.toContain("tok-123");
   });
 
+  it("asks the shell for a token before the first call, and sends it, with no 401 on the way", async () => {
+    const { pluto, sent } = mount();
+    const fetchMock = vi.fn().mockResolvedValue(answer(200));
+    vi.stubGlobal("fetch", fetchMock);
+    const pending = getGreeting("ana");
+    await vi.waitFor(() => expect(sent.some((m) => m.type === "auth.refresh.request")).toBe(true));
+    expect(fetchMock).not.toHaveBeenCalled();
+    act(() => fromNative(pluto, tokenMessage("first")));
+    await pending;
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]![1].headers).toEqual({ Authorization: "Bearer first" });
+  });
+
+  it("asks again when the first token the shell sends is already expired", async () => {
+    const { pluto, sent } = mount();
+    const fetchMock = vi.fn().mockImplementation(async () => answer(200));
+    vi.stubGlobal("fetch", fetchMock);
+    const pending = getGreeting("ana");
+    await vi.waitFor(() => expect(sent.filter((m) => m.type === "auth.refresh.request")).toHaveLength(1));
+    act(() => fromNative(pluto, tokenMessage("dead", Math.floor(Date.now() / 1000) - 60)));
+    await vi.waitFor(() => expect(sent.filter((m) => m.type === "auth.refresh.request")).toHaveLength(2));
+    expect(fetchMock).not.toHaveBeenCalled();
+    act(() => fromNative(pluto, tokenMessage("fresh")));
+    await pending;
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]![1].headers).toEqual({ Authorization: "Bearer fresh" });
+  });
+
+  it("asks the shell only once when it has no token to give", async () => {
+    vi.useFakeTimers();
+    try {
+      const { sent } = mount();
+      const fetchMock = vi.fn().mockImplementation(async () => answer(200));
+      vi.stubGlobal("fetch", fetchMock);
+      const first = getGreeting("ana");
+      await vi.advanceTimersByTimeAsync(5001);
+      await first;
+      expect(fetchMock.mock.calls[0]![1].headers).toEqual({});
+      await getGreeting("bob");
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(sent.filter((m) => m.type === "auth.refresh.request")).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("asks for a refresh on 401 and repeats the call once", async () => {
     const { pluto, sent } = mount();
     const fetchMock = vi
